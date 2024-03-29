@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
+
 class ProductViewModel : ViewModel() {
 
     private val _products = MutableLiveData<List<Product>>()
@@ -33,6 +34,7 @@ class ProductViewModel : ViewModel() {
 
     private lateinit var myAppContext: Context
 
+    private var db = DatabaseProvider.getDatabase(null)
 
     @Composable
     fun Initialize() {
@@ -58,18 +60,32 @@ class ProductViewModel : ViewModel() {
                         } else {
                             Log.d("My", "product set is not empty.")
                             // Save products to the database
-                            // db.saveProducts(products)
+                            viewModelScope.launch {
+                                val toSave = _products.value
+                                if (toSave != null) {
+                                    Log.d("My","toSave size:" + toSave.size.toString())
+                                }
+                                if (toSave != null) {
+                                    db.saveProducts(toSave)
+                                    Log.d("My", "products saved to database.")
+                                    Log.d("My", db.retrieveProducts().size.toString())
+                                }
+                            }
                         }
                     } else {
                         Log.d("My", "an error was encountered")
                         _error.value = "Error: ${response.code()} ${response.message()}"
                     }
                 } else {
-                    // Fetch data from the database if offline
-                    // products = db.retrieveProducts() ?: emptyList()
                     Log.d("My", "device was offline.")
-                    if (_products.value.isNullOrEmpty()) {
-                        _noResults.value = true
+                    // Fetch data from the database if offline
+                    viewModelScope.launch {
+                        _products.value = db.retrieveProducts()
+                        Log.d("My", "products fetched from database.")
+                        if (_products.value.isNullOrEmpty()) {
+                            Log.d("My", "no products in database.")
+                            _noResults.value = true
+                    }
                     }
                 }
             } catch (e: Exception) {
